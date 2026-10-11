@@ -7,6 +7,8 @@ on:
 jobs:
   test-and-report:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +29,9 @@ jobs:
           python scripts/report.py
           cat reports/ci_report.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Build report web page
+        run: python scripts/build_site.py
+
       - name: Upload build data and report
         if: always()
         uses: actions/upload-artifact@v4
@@ -35,3 +40,24 @@ jobs:
           path: |
             data/build_times.csv
             reports/ci_report.md
+
+      - name: Package page for deployment
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: test-and-report
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
