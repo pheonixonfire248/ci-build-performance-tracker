@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests and record build time
+        run: python scripts/run_timed_tests.py
+
+      - name: Generate delivery report
+        if: always()
+        run: |
+          python scripts/report.py
+          cat reports/ci_report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build data and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-report
+          path: |
+            data/build_times.csv
+            reports/ci_report.md
